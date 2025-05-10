@@ -1,20 +1,26 @@
-import { useCanvasStore } from '@/lib/state'
-import { Loader, Play } from 'lucide-react'
-import { invoke } from '@tauri-apps/api/core'
 import { useEffect, useState } from 'react'
+import { useCanvasStore } from '@/lib/state'
+import { Play } from 'lucide-react'
+import { invoke } from '@tauri-apps/api/core'
+import { Button, Slider, Text } from '@radix-ui/themes'
+import { readFile } from '@tauri-apps/plugin-fs'
 
-function DetectionPanel() {
-  const { imageSrc, imageSrcHistory, texts, setTexts, setSegment } =
-    useCanvasStore()
+export default function DetectionPanel() {
+  const { imagePath, texts, setTexts, setSegment } = useCanvasStore()
   const [loading, setLoading] = useState(false)
-  const inference = async (src: string) => {
+  const [confidenceThreshold, setConfidenceThreshold] = useState(0.5)
+  const [nmsThreshold, setNmsThreshold] = useState(0.5)
+
+  const inference = async () => {
+    if (!imagePath) return
     setLoading(true)
-    const buffer = await fetch(src).then((res) => res.bytes())
+    const image = await readFile(imagePath)
     const result = await invoke<any>('detect', {
-      image: buffer,
+      image,
+      confidenceThreshold,
+      nmsThreshold,
     })
 
-    if (imageSrcHistory[imageSrcHistory.length - 1] !== src) return
     setSegment(result.segment)
 
     result.bboxes.sort((a: any, b: any) => {
@@ -27,39 +33,63 @@ function DetectionPanel() {
     setLoading(false)
   }
 
-  // auto trigger inference when imageSrc changes
+  // auto trigger inference when image changes
   useEffect(() => {
-    if (imageSrc && texts.length === 0) {
-      inference(imageSrc)
+    if (imagePath && texts.length === 0) {
+      inference()
     }
-  }, [imageSrc])
+  }, [imagePath, texts])
 
   return (
-    <div className='flex w-72 flex-col rounded-lg border border-gray-200 bg-white shadow-md'>
+    <div className='flex w-full flex-col rounded-lg border border-gray-200 bg-white shadow-md'>
       {/* Header */}
       <div className='flex items-center p-3'>
-        <h2 className='font-medium'>吹き出し検出</h2>
+        <h2 className='font-medium'>Detection</h2>
         <div className='flex-grow'></div>
-        <button
-          className='cursor-pointer rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700'
-          onClick={() => inference(imageSrc)}
-          disabled={loading}
-        >
-          {loading ? (
-            <Loader className='h-4 w-4 animate-spin' />
-          ) : (
-            <Play className='h-4 w-4' />
-          )}
-        </button>
+        <Button onClick={inference} loading={loading} variant='soft'>
+          <Play className='h-4 w-4' />
+        </Button>
       </div>
       {/* Body */}
       <div className='flex flex-col justify-center'>
-        <div className='border-b border-gray-200 px-4 py-2 text-sm'>
-          {texts.length} 個セリフを検出しました
+        <div className='flex flex-col gap-2 border-b border-gray-200 px-4 py-2 text-sm'>
+          <div className='flex flex-col gap-1'>
+            <div className='flex items-center justify-between'>
+              <span>Confidence threshold</span>
+              <span>{confidenceThreshold}</span>
+            </div>
+            <Slider
+              size='1'
+              min={0}
+              max={1}
+              step={0.01}
+              value={[confidenceThreshold]}
+              onValueChange={(value) => {
+                setConfidenceThreshold(value[0])
+              }}
+            />
+          </div>
+          <div className='flex flex-col gap-1'>
+            <div className='flex items-center justify-between'>
+              <span>NMS threshold</span>
+              <span>{nmsThreshold}</span>
+            </div>
+            <Slider
+              size='1'
+              min={0}
+              max={1}
+              step={0.01}
+              value={[nmsThreshold]}
+              onValueChange={(value) => {
+                setNmsThreshold(value[0])
+              }}
+            />
+          </div>
+          <Text>
+            <strong>{texts.length}</strong> text blocks detected
+          </Text>
         </div>
       </div>
     </div>
   )
 }
-
-export default DetectionPanel

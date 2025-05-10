@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Theme } from '@radix-ui/themes'
 import { Noto_Sans_JP, Noto_Sans_SC } from 'next/font/google'
 import './globals.css'
 
@@ -15,11 +16,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang='ja' suppressHydrationWarning>
+    <html lang='en' suppressHydrationWarning>
       <body
         className={`${notoSansJP.className} ${notoSansSC.className} antialiased`}
       >
-        {children}
+        <Theme accentColor='ruby'>{children}</Theme>
       </body>
     </html>
   )

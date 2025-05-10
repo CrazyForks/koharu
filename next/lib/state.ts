@@ -20,39 +20,27 @@ const createStorage = (name: string) => {
 }
 
 type CanvasState = {
-  imageSrc: string | null
-  setImageSrc: (src: string | null) => void
+  imagePath: string | null
+  setImagePath: (path: string | null) => void
   scale: number
   setScale: (scale: number) => void
   texts: any[]
   setTexts: (blocks: any[]) => void
   segment: Uint8Array | null
   setSegment: (segment: Uint8Array) => void
-  imageSrcHistory: string[]
-  setImageSrcHistory: (src: string) => void
 }
 
 export const useCanvasStore = create<CanvasState>()(
   persist(
     (set, get) => ({
-      imageSrc: null,
-      setImageSrc: (src) => set({ imageSrc: src }),
+      imagePath: null,
+      setImagePath: (path) => set({ imagePath: path }),
       scale: 1,
       setScale: (scale) => set({ scale }),
       texts: [],
       setTexts: (blocks) => set({ texts: blocks }),
       segment: null,
       setSegment: (segment) => set({ segment }),
-      imageSrcHistory: [],
-      setImageSrcHistory: (src) => {
-        const history = get().imageSrcHistory
-        if (history[history.length - 1] !== src) {
-          if (history.length >= 5) {
-            history.shift()
-          }
-          history.push(src)
-        }
-      },
     }),
     {
       name: 'canvas-storage',

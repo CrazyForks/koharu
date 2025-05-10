@@ -1,66 +1,55 @@
 'use client'
 
 import { open } from '@tauri-apps/plugin-dialog'
-import { Image, Download, Settings } from 'lucide-react'
-import { debug } from '@tauri-apps/plugin-log'
-import { convertFileSrc } from '@tauri-apps/api/core'
+import { Image, Settings } from 'lucide-react'
 import { useCanvasStore } from '@/lib/state'
 import { useRouter } from 'next/navigation'
+import { Button } from '@radix-ui/themes'
 
 function Topbar() {
   const router = useRouter()
-  const { setImageSrc, setTexts, setSegment, setImageSrcHistory } =
-    useCanvasStore()
-  const handleOpenFile = async () => {
-    const selected = await open({
-      multiple: false,
-      filters: [
-        {
-          name: 'Image',
-          extensions: ['png', 'jpeg', 'jpg'],
-        },
-      ],
-    })
+  const { setImagePath, setTexts, setSegment } = useCanvasStore()
 
-    debug(`Opened file: ${selected}`)
+  const handleOpenImage = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: 'Images',
+            extensions: ['png', 'jpg', 'jpeg'],
+          },
+        ],
+      })
 
-    if (!selected) {
-      debug('No file selected')
-      return
+      if (!selected) return
+
+      setTexts([])
+      setSegment(null)
+      setImagePath(selected)
+    } catch (err) {
+      console.error('Error opening image:', err)
     }
-
-    const imageUrl = convertFileSrc(selected)
-    setImageSrcHistory(imageUrl)
-    setImageSrc(imageUrl)
-    setTexts([]) // Clear blocks when a new image is loaded
-    setSegment(null) // Clear segment when a new image is loaded
   }
 
   return (
-    <div className='fixed z-50 flex w-full items-center border-b border-gray-200 bg-white p-2 shadow-sm'>
-      <div className='flex items-center'>
-        <button
-          className='mx-1 flex items-center rounded p-2 text-gray-600 hover:bg-gray-100'
-          onClick={handleOpenFile}
-        >
-          <Image size={18} />
-        </button>
+    <div className='flex w-full items-center border-b border-gray-200 bg-white p-2 shadow-sm'>
+      <div className='mx-1 flex items-center'>
+        <Button onClick={handleOpenImage} variant='soft'>
+          <Image size={20} />
+        </Button>
       </div>
 
       <div className='flex-grow' />
-      <div className='flex items-center'>
-        <button
-          className='mx-1 flex items-center rounded p-2 text-gray-600 hover:bg-gray-100'
+      <div className='mx-1 flex items-center gap-1'>
+        <Button
+          variant='soft'
           onClick={() => {
             router.push('/settings')
           }}
         >
-          <Settings size={18} />
-        </button>
-
-        <button className='mx-1 flex items-center rounded p-2 text-gray-600 hover:bg-gray-100'>
-          <Download size={18} />
-        </button>
+          <Settings size={20} />
+        </Button>
       </div>
     </div>
   )
