@@ -7,23 +7,45 @@ import Canvas from '@/components/canvas'
 import OCRPanel from '@/components/ocr-panel'
 import { useWorkflowStore } from '@/lib/state'
 import TranslationPanel from '@/components/translation-panel'
+import SplashScreen from '@/components/splashscreen'
+import { useEffect, useState } from 'react'
+import * as detection from '@/lib/detection'
+import * as ocr from '@/lib/ocr'
+import * as inpaint from '@/lib/inpaint'
 
 function App() {
+  const [progress, setProgress] = useState(0)
+  const [loading, setLoading] = useState(true)
   const { selectedTool } = useWorkflowStore()
+
+  useEffect(() => {
+    const initialize = async () => {
+      await detection.initialize().then(() => setProgress(30))
+      await ocr.initialize().then(() => setProgress(70))
+      await inpaint.initialize().then(() => setProgress(100))
+    }
+    initialize().then(() => {
+      setLoading(false)
+    })
+  }, [])
+
+  if (loading) {
+    return <SplashScreen progress={progress} />
+  }
 
   return (
     <main className='flex h-screen max-h-screen w-screen max-w-screen flex-col bg-gray-100'>
       <Topbar />
-      <div className='flex flex-1'>
-        <div className='fixed z-50 mx-3 mt-13 pt-3'>
+      <div className='flex flex-1 overflow-hidden'>
+        <div className='flex h-full w-20 items-start p-3'>
           <Tools />
         </div>
 
-        <div className='flex h-screen flex-1 flex-col items-center justify-center'>
+        <div className='flex flex-1 flex-col items-center justify-center'>
           <Canvas />
         </div>
 
-        <div className='fixed right-3 mt-13 ml-3 flex h-[calc(100vh-3.5rem)] flex-col gap-2 overflow-y-auto pt-3'>
+        <div className='flex h-full w-72 flex-col gap-2 overflow-y-auto p-3'>
           {selectedTool === 'detection' && (
             <>
               <DetectionPanel />
