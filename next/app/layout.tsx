@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { Theme } from '@radix-ui/themes'
 import { Noto_Sans_JP, Noto_Sans_SC } from 'next/font/google'
 import './globals.css'
 
@@ -7,6 +8,7 @@ const notoSansSC = Noto_Sans_SC({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
   title: 'Koharu',
+  description: 'Manga Translator',
 }
 
 export default function RootLayout({
@@ -15,11 +17,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang='ja' suppressHydrationWarning>
+    <html lang='en'>
       <body
         className={`${notoSansJP.className} ${notoSansSC.className} antialiased`}
+        suppressHydrationWarning
       >
-        {children}
+        <Theme accentColor='ruby'>{children}</Theme>
       </body>
     </html>
   )
