@@ -4,8 +4,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*.*.*'  # Matches version tags like v1.0.0
   pull_request:
 
 jobs:
@@ -23,7 +21,7 @@ jobs:
           - platform: 'ubuntu-22.04' # for Tauri v1 you could replace this with ubuntu-20.04.
             args: ''
           - platform: 'windows-2025'
-            args: '--features cuda'
+            args: '--no-bundle --features=cuda'
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -32,13 +30,13 @@ jobs:
       - uses: oven-sh/setup-bun@v2
 
       - name: install Rust stable
+        if: matrix.platform == 'macos-15'
         uses: dtolnay/rust-toolchain@stable
         with:
-          # Those targets are only used on macos runners so it's in an `if` to slightly speed up windows and linux builds.
-          targets: ${{ matrix.platform == 'macos-15' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+          targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
 
       - name: install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-22.04' # This must match the platform value defined above.
+        if: matrix.platform == 'ubuntu-22.04'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
@@ -55,7 +53,19 @@ jobs:
         with:
           args: ${{ matrix.args }}
 
+      # workaround to avoid DLLs being used by another process
+      - name: Bundle
+        if: matrix.platform == 'windows-2025'
+        run: |
+          bun tauri bundle --config src-tauri/tauri.cuda.conf.json
+
+      - name: Get version
+        id: version
+        shell: bash
+        run: echo "version=$(cargo metadata --format-version=1 --no-deps | jq -r '.packages[0].version')" >> $GITHUB_OUTPUT
+
       - id: artifacts
+        name: Get artifact paths
         shell: bash
         run: |
           echo "files<<EOF" >> $GITHUB_OUTPUT
@@ -63,7 +73,10 @@ jobs:
             echo "$path" >> $GITHUB_OUTPUT
           done
           if [[ "${{ matrix.platform }}" == "windows-2025" ]]; then
-            echo "target/release/koharu.exe" >> $GITHUB_OUTPUT
+            cd target/release
+            7z a ../../koharu_${{ steps.version.outputs.version }}_x64-portable.zip koharu.exe *.dll
+            echo "koharu_${{ steps.version.outputs.version }}_x64-portable.zip" >> $GITHUB_OUTPUT
+            echo "target/release/bundle/nsis/koharu_${{ steps.version.outputs.version }}_x64-setup.exe" >> $GITHUB_OUTPUT
           fi
           echo "EOF" >> $GITHUB_OUTPUT
 
@@ -71,7 +84,7 @@ jobs:
         if: ${{ github.event_name == 'push' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.tauri.outputs.appVersion }}
+          tag_name: ${{ steps.version.outputs.version }}
           files: ${{ steps.artifacts.outputs.files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
