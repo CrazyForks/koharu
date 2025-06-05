@@ -1,11 +1,12 @@
 [package]
 name = "manga-ocr"
-version = "0.1.0"
-edition = "2024"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-anyhow = "1.0.98"
-clap = { version = "4.5.36", features = ["derive"] }
-image = "0.25.6"
-ndarray = "0.16.1"
-ort = "=2.0.0-rc.9"
+hf-hub = { workspace = true }
+image = { workspace = true }
+ort = { workspace = true }
+anyhow = { workspace = true }
+ndarray = { workspace = true }
+clap = { workspace = true }

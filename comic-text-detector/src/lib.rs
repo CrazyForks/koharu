@@ -3,12 +3,7 @@ use std::thread;
 use candle_transformers::object_detection::{Bbox, non_maximum_suppression};
 use hf_hub::api::sync::Api;
 use image::GenericImageView;
-use ort::{
-    execution_providers::{
-        CUDAExecutionProvider, CoreMLExecutionProvider, DirectMLExecutionProvider,
-    },
-    session::Session,
-};
+use ort::session::Session;
 use serde::Serialize;
 
 #[derive(Debug)]
@@ -32,21 +27,16 @@ pub struct ClassifiedBbox {
     pub class: usize,
 }
 
+const MASK_THRESHOLD: u8 = 30;
+
 impl ComicTextDetector {
     pub fn new() -> anyhow::Result<Self> {
         let api = Api::new()?;
-        let repo = api.model("mayocream/koharu".to_string());
-        let model_path = repo.get("comictextdetector.onnx")?;
+        let repo = api.model("mayocream/comic-text-detector-onnx".to_string());
+        let model_path = repo.get("comic-text-detector.onnx")?;
 
         let model = Session::builder()?
             .with_optimization_level(ort::session::builder::GraphOptimizationLevel::Level3)?
-            .with_execution_providers([
-                CUDAExecutionProvider::default().build(),
-                // Use DirectML on Windows if NVIDIA EPs are not available
-                DirectMLExecutionProvider::default().build(),
-                // Or use ANE on Apple platforms
-                CoreMLExecutionProvider::default().build(),
-            ])?
             .with_intra_threads(thread::available_parallelism()?.get())?
             .commit_from_file(model_path)?;
 
@@ -58,7 +48,6 @@ impl ComicTextDetector {
         image: &image::DynamicImage,
         confidence_threshold: f32,
         nms_threshold: f32,
-        mask_threshold: f32,
     ) -> anyhow::Result<Output> {
         let (orig_width, orig_height) = image.dimensions();
         let w_ratio = orig_width as f32 / 1024.0;
@@ -132,13 +121,27 @@ impl ComicTextDetector {
             .view()
             .to_owned()
             .into_dimensionality::<ndarray::Ix4>()?;
-        let mut segment = Vec::with_capacity(1024 * 1024);
-        for i in 0..1024 {
-            for j in 0..1024 {
-                let val = (255.0 * mask[[0, 0, i, j]]).round() as u8;
-                segment.push(val);
-            }
-        }
+        // Extract the relevant 2D slice from the 4D array
+        let mask_slice = mask.slice(ndarray::s![0, 0, .., ..]);
+
+        // Create a new 2D array for the thresholded values
+        let thresholded = mask_slice.mapv(|x| {
+            let val = (255.0 * x).round() as u8;
+            if val < MASK_THRESHOLD { 0 } else { val }
+        });
+
+        // Convert to Vec
+        let (segment, _) = thresholded.into_raw_vec_and_offset();
+        // dilate the mask
+        let segment = image::GrayImage::from_vec(1024, 1024, segment)
+            .ok_or_else(|| anyhow::anyhow!("Failed to create GrayImage"))?;
+        let segment = imageproc::morphology::grayscale_dilate(
+            &segment,
+            &imageproc::morphology::Mask::square(3),
+        );
+        let segment =
+            imageproc::morphology::erode(&segment, imageproc::distance_transform::Norm::L2, 1);
+        let segment = segment.into_raw();
 
         Ok(Output { bboxes, segment })
     }

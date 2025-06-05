@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "koharu",
-  "version": "0.1.0",
   "identifier": "koharu",
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -14,14 +13,18 @@
       {
         "label": "main",
         "title": "Koharu",
-        "visible": false,
         "width": 1200,
         "height": 900,
-        "center": true
+        "center": true,
+        "visible": false
       },
       {
+        "label": "splashscreen",
         "url": "/splashscreen",
-        "label": "splashscreen"
+        "width": 400,
+        "height": 300,
+        "center": true,
+        "decorations": false
       }
     ],
     "security": {
@@ -29,7 +32,9 @@
       "csp": "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:",
       "assetProtocol": {
         "enable": true,
-        "scope": ["**/*"]
+        "scope": [
+          "**/*"
+        ]
       }
     }
   },
